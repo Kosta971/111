@@ -1,35 +1,43 @@
-// Страница регистрации и входа
-import React, { useState } from 'react';
+// Стартовая структура проекта
+"use client";
 
+import { useState, useEffect } from "react";
+import { initializeApp } from "firebase/app";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { ethers } from "ethers";
+
+// Firebase конфигурация
+const firebaseConfig = {
+  apiKey: "YOUR_FIREBASE_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+initializeApp(firebaseConfig);
+const auth = getAuth();
+
+// Страница авторизации (регистрация / вход)
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    if (isLogin) {
-      // Поиск пользователя для входа
-      const user = users.find((user: any) => user.email === email && user.password === password);
-      if (user) {
+    try {
+      if (isLogin) {
+        await signInWithEmailAndPassword(auth, email, password);
         setMessage("Успешный вход!");
-        localStorage.setItem('loggedInUser', JSON.stringify(user)); // Сохранение вошедшего пользователя
       } else {
-        setMessage("Неверные данные для входа");
-      }
-    } else {
-      // Регистрация нового пользователя
-      const userExists = users.some((user: any) => user.email === email);
-      if (userExists) {
-        setMessage("Пользователь с таким email уже существует");
-      } else {
-        const newUser = { email, password };
-        users.push(newUser);
-        localStorage.setItem('users', JSON.stringify(users));
+        await createUserWithEmailAndPassword(auth, email, password);
         setMessage("Регистрация успешна!");
       }
+    } catch (error: any) {
+      setMessage(error.message);
     }
   };
 
@@ -74,6 +82,45 @@ export default function AuthPage() {
         </p>
         {message && <p className="mt-4 text-center text-red-400">{message}</p>}
       </div>
+    </div>
+  );
+}
+
+// Страница Биржи (для работы с токеном)
+export function ExchangePage() {
+  const [account, setAccount] = useState("");
+  const [balance, setBalance] = useState("0");
+  const tokenAddress = "YOUR_TOKEN_CONTRACT_ADDRESS";  // Заменить на свой адрес контракта
+  const tokenABI = [
+    "function balanceOf(address owner) view returns (uint256)",
+    "function transfer(address to, uint amount) returns (bool)"
+  ];
+
+  async function connectWallet() {
+    if (window.ethereum) {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const accounts = await provider.send("eth_requestAccounts", []);
+      const signer = await provider.getSigner();
+      setAccount(accounts[0]);
+
+      const contract = new ethers.Contract(tokenAddress, tokenABI, provider);
+      const rawBalance = await contract.balanceOf(accounts[0]);
+      setBalance(ethers.formatUnits(rawBalance, 18));
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-r from-green-400 via-blue-500 to-purple-500 text-white p-6">
+      <h2 className="text-2xl font-bold mb-4">Биржа MyCallyve</h2>
+      <button onClick={connectWallet} className="bg-green-600 px-4 py-2 rounded">
+        Подключить MetaMask
+      </button>
+      {account && (
+        <div className="mt-4">
+          <p>Кошелек: {account}</p>
+          <p>Баланс MyCallyve: {balance}</p>
+        </div>
+      )}
     </div>
   );
 }
