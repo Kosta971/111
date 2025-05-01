@@ -1,0 +1,140 @@
+// Стартовая структура проекта
+// Страница 1: auth.tsx (регистрация / вход)
+// Страница 2: exchange.tsx (биржа с MyCallyve)
+
+"use client";
+
+import { useState, useEffect } from "react";
+import { initializeApp } from "firebase/app";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { ethers } from "ethers";
+
+const firebaseConfig = {
+  apiKey: "YOUR_FIREBASE_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+initializeApp(firebaseConfig);
+const auth = getAuth();
+
+export default function AuthPage() {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+
+  const handleSubmit = async (e: any) => {
+    e.preventDefault();
+    try {
+      if (isLogin) {
+        await signInWithEmailAndPassword(auth, email, password);
+        setMessage("Успешный вход!");
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+        setMessage("Регистрация успешна!");
+      }
+    } catch (error: any) {
+      setMessage(error.message);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+      <div className="bg-gray-900 p-8 rounded shadow-md w-full max-w-md">
+        <h2 className="text-2xl font-bold mb-6 text-center">
+          {isLogin ? "Вход в аккаунт" : "Регистрация"}
+        </h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-2 rounded bg-gray-800 text-white"
+            required
+          />
+          <input
+            type="password"
+            placeholder="Пароль"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-2 rounded bg-gray-800 text-white"
+            required
+          />
+          <button
+            type="submit"
+            className="w-full bg-blue-600 py-2 rounded hover:bg-blue-700"
+          >
+            {isLogin ? "Войти" : "Зарегистрироваться"}
+          </button>
+        </form>
+        <p className="mt-4 text-center">
+          {isLogin ? "Нет аккаунта?" : "Уже есть аккаунт?"}
+          <button
+            onClick={() => setIsLogin(!isLogin)}
+            className="text-blue-400 ml-2"
+          >
+            {isLogin ? "Зарегистрироваться" : "Войти"}
+          </button>
+        </p>
+        {message && <p className="mt-4 text-center text-red-400">{message}</p>}
+      </div>
+    </div>
+  );
+}
+
+export function App() {
+  return (
+    <div className="min-h-screen bg-gray-950 text-white p-6">
+      <h1 className="text-3xl font-bold mb-4">MyCallyve Exchange</h1>
+      <p className="text-gray-400">Добро пожаловать! Выберите страницу:</p>
+      <div className="mt-4 space-x-4">
+        <a href="/auth" className="bg-blue-600 px-4 py-2 rounded">Регистрация / Вход</a>
+        <a href="/exchange" className="bg-green-600 px-4 py-2 rounded">Биржа</a>
+      </div>
+    </div>
+  );
+}
+
+// Страница Биржи
+export function ExchangePage() {
+  const [account, setAccount] = useState("");
+  const [balance, setBalance] = useState("0");
+  const tokenAddress = "YOUR_TOKEN_CONTRACT_ADDRESS";
+  const tokenABI = [
+    "function balanceOf(address owner) view returns (uint256)",
+    "function transfer(address to, uint amount) returns (bool)"
+  ];
+
+  async function connectWallet() {
+    if (window.ethereum) {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const accounts = await provider.send("eth_requestAccounts", []);
+      const signer = await provider.getSigner();
+      setAccount(accounts[0]);
+
+      const contract = new ethers.Contract(tokenAddress, tokenABI, provider);
+      const rawBalance = await contract.balanceOf(accounts[0]);
+      setBalance(ethers.formatUnits(rawBalance, 18));
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-950 text-white p-6">
+      <h2 className="text-2xl font-bold mb-4">Биржа MyCallyve</h2>
+      <button onClick={connectWallet} className="bg-green-600 px-4 py-2 rounded">
+        Подключить MetaMask
+      </button>
+      {account && (
+        <div className="mt-4">
+          <p>Кошелек: {account}</p>
+          <p>Баланс MyCallyve: {balance}</p>
+        </div>
+      )}
+    </div>
+  );
+}
